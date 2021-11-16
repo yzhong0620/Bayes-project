@@ -27,3 +27,18 @@ survey %>%
   geom_bar(position = "fill")
 ```
 
+```{r}
+survey %>% 
+  filter(Transgender == "NO, NOT TRANSGENDER" | Transgender == "YES, TRANSGENDER") %>% 
+  filter(Race == "WHITE ONLY" | Race == "BLACK ONLY" | Race == "MULTI-RACIAL") %>% 
+  ggplot(aes(x = Transgender, fill = Race)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey %>% 
+  filter(Race == "WHITE ONLY" | Race == "BLACK ONLY" | Race == "MULTI-RACIAL") %>% 
+  ggplot(aes(x = Race, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
