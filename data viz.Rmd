@@ -14,6 +14,12 @@ library(tidyverse)
 survey <- read_csv("Patient_Characteristics_Survey__PCS___2017.csv")
 ```
 
+## INTRODUCING THE DATA
+
+We are using data from the 2017 Patient Characteristics Study (PCS), conducted by the New York State Office of Mental Health to better understand and reform the public mental health system. The PCS collects information about every client recieving public mental health services in the state of New York for a one week period, every 2 years. You can learn more about the study here: https://omh.ny.gov/omhweb/pcs/submissions/. We chose this data set because we are interested in mental health and trans identity, and this was one of the few publicly available data sets that includes trans status as a vairable. We downloaded the data from https://catalog.data.gov/dataset/patient-characteristics-survey-pcs-2017.
+
+ADD CODE BOOK!!!!
+
 ## DATA SUMMARY
 ```{r}
 head(survey)
@@ -32,11 +38,12 @@ summary(survey)
 ```
 
 ## DATA VIZ
+
 ```{r}
 survey %>%
   ggplot()+
   geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
-  labs(title = "Race & Ethnicity")+
+  labs(title = "Race & Ethnicity before cleaning")+
   theme(axis.text.x = element_text(angle=20))
   #geom_text(aes(label=y))
 ```
@@ -45,7 +52,57 @@ survey %>%
 survey %>%
   ggplot()+
   geom_bar(aes(x=Transgender, fill = Transgender))+
+  labs(title = "Transgender Identity before cleaning")+
   theme(axis.text.x = element_text(angle=20))
   #geom_text(aes(label=y))
 ```
 
+```{r}
+table(survey$Transgender)
+table(survey$`Mental Illness`)
+table(survey$Race)
+```
+
+```{r}
+# cleaning the data!
+survey_cleaned <- survey %>% 
+  filter(Transgender == "NO, NOT TRANSGENDER" | Transgender == "YES, TRANSGENDER")%>%
+  filter(Race == "WHITE ONLY" | Race == "BLACK ONLY" | Race == "MULTI-RACIAL" | Race == "OTHER")
+```
+
+```{r}
+survey_cleaned %>%
+  ggplot()+
+  geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
+  labs(title = "Race & Ethnicity after cleaning")+
+  theme(axis.text.x = element_text(angle=20))
+  #geom_text(aes(label=y))
+```
+
+```{r}
+survey_cleaned %>%
+  ggplot()+
+  labs(title = "Transgender Identity after cleaning")+
+  geom_bar(aes(x=Transgender, fill = Transgender))+
+  theme(axis.text.x = element_text(angle=20))
+  #geom_text(aes(label=y))
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Race, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = Race)) +
+  geom_bar(position = "fill")
+```
