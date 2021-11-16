@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 survey <- read_csv("Patient_Characteristics_Survey__PCS___2017.csv")
 ```
+
+## DATA SUMMARY
 ```{r}
 head(survey)
 ```
@@ -29,10 +31,13 @@ names(survey)
 summary(survey)
 ```
 
+## DATA VIZ
 ```{r}
 survey %>%
   ggplot()+
-  geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))
+  geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
+  labs(title = "Race & Ethnicity")+
+  theme(axis.text.x = element_text(angle=20))
   #geom_text(aes(label=y))
 ```
 
@@ -42,18 +47,5 @@ survey %>%
   geom_bar(aes(x=Transgender, fill = Transgender))+
   theme(axis.text.x = element_text(angle=20))
   #geom_text(aes(label=y))
-```
-
-```{r}
-table(survey$Transgender)
-table(survey$Race)
-table(survey$`Sexual Orientation`)
-```
-
-```{r}
-survey %>% 
-  filter(Transgender == "NO, NOT TRANSGENDER" | Transgender == "YES, TRANSGENDER") %>% 
-  ggplot(aes(x = Transgender, fill = `Mental Illness`)) +
-  geom_bar(position = "fill")
 ```
 
