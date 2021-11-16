@@ -1,0 +1,29 @@
+---
+title: "data_viz_yunyang"
+author: "Yunyang Zhong"
+date: "11/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+survey <- read_csv("Patient_Characteristics_Survey__PCS___2017.csv")
+```
+
+```{r}
+table(survey$Transgender)
+table(survey$`Mental Illness`)
+table(survey$Race)
+```
+
+```{r}
+survey %>% 
+  filter(Transgender == "NO, NOT TRANSGENDER" | Transgender == "YES, TRANSGENDER") %>% 
+  ggplot(aes(x = Transgender, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
