@@ -14,3 +14,16 @@ library(tidyverse)
 survey <- read_csv("Patient_Characteristics_Survey__PCS___2017.csv")
 ```
 
+```{r}
+table(survey$Transgender)
+table(survey$Race)
+table(survey$`Sexual Orientation`)
+```
+
+```{r}
+survey %>% 
+  filter(Transgender == "NO, NOT TRANSGENDER" | Transgender == "YES, TRANSGENDER") %>% 
+  ggplot(aes(x = Transgender, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
