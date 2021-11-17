@@ -1,0 +1,152 @@
+---
+title: "data viz"
+author: "Kaden Bieger & Yunyang Zhong"
+date: "11/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+survey <- read_csv("Patient_Characteristics_Survey__PCS___2017.csv")
+```
+
+## INTRODUCING THE DATA
+
+We are using data from the 2017 Patient Characteristics Study (PCS), conducted by the New York State Office of Mental Health to better understand and reform the public mental health system. The PCS collects information about every client recieving public mental health services in the state of New York for a one week period, every 2 years. You can learn more about the study here: https://omh.ny.gov/omhweb/pcs/submissions/. We chose this data set because we are interested in mental health and trans identity, and this was one of the few publicly available data sets that includes trans status as a vairable. We downloaded the data from https://catalog.data.gov/dataset/patient-characteristics-survey-pcs-2017.
+
+```{r}
+data.frame(variable = c("Transgender", "Mental Illness", "Race", "Hispanic Ethnicity", "Sexual Orientation"), meaning = c("YES or NO", "YES or NO", "WHITE ONLY, BLACK ONLY, or MULTI-RACIAL", "YES or NO", "BISEXUAL, LESBIAN/GAY or STRAIGHT/HETEROSEXUAL")) %>% 
+  kbl() %>% 
+  kable_classic(position = "center", full_width = F)
+```
+
+```{r}
+table(survey$Transgender)
+table(survey$`Mental Illness`)
+table(survey$Race)
+table(survey$`Hispanic Ethnicity`)
+table(survey$`Sexual Orientation`)
+```
+
+## DATA SUMMARY
+
+```{r}
+head(survey)
+```
+
+```{r}
+dim(survey)
+```
+
+```{r}
+names(survey)
+```
+
+```{r}
+summary(survey)
+```
+
+## DATA VIZ
+
+```{r}
+survey %>%
+  ggplot()+
+  geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
+  labs(title = "Race & Ethnicity before cleaning")+
+  theme(axis.text.x = element_text(angle=20))
+  #geom_text(aes(label=y))
+```
+
+```{r}
+survey %>%
+  ggplot()+
+  geom_bar(aes(x=Transgender, fill = Transgender))+
+  labs(title = "Transgender Identity before cleaning")+
+  theme(axis.text.x = element_text(angle=20))
+  #geom_text(aes(label=y))
+```
+
+```{r}
+# cleaning the data!
+survey_cleaned <- survey %>% 
+  filter(Transgender == "NO, NOT TRANSGENDER" | Transgender == "YES, TRANSGENDER") %>%
+  filter(Race == "WHITE ONLY" | Race == "BLACK ONLY" | Race == "MULTI-RACIAL" | Race == "OTHER") %>% 
+  filter(`Alcohol Related Disorder` == "YES" | `Alcohol Related Disorder` == "NO") %>% 
+  filter(`Drug Substance Disorder` == "YES" | `Drug Substance Disorder` == "NO")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = Race)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Race, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Alcohol Related Disorder`)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Drug Substance Disorder`)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = `Alcohol Related Disorder`, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = `Drug Substance Disorder`, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>%
+  ggplot()+
+  geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
+  labs(title = "Race & Ethnicity after cleaning")+
+  theme(axis.text.x = element_text(angle=20))
+  #geom_text(aes(label=y))
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = `Transgender`, fill = `Serious Mental Illness`)) +
+  geom_bar(position = "fill") +
+  facet_wrap(vars(`Age Group`))+
+  theme(axis.text.x = element_text(angle=20))
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Number Of Hours Worked Each Week`)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Race, fill = `Serious Mental Illness`)) +
+  geom_bar(position = "fill")
+```
