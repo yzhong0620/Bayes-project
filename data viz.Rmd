@@ -2,7 +2,12 @@
 title: "data viz"
 author: "Kaden Bieger & Yunyang Zhong"
 date: "11/16/2021"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    code_download: true
 ---
 
 ```{r setup, include=FALSE}
@@ -22,6 +27,7 @@ library(broom.mixed)
 library(bayesrules)
 library(janitor)
 library(e1071)
+library(klaR)
 survey <- read_csv("Patient_Characteristics_Survey__PCS___2017.csv")
 ```
 
@@ -96,9 +102,18 @@ survey_cleaned <- survey %>%
   filter(`Number Of Hours Worked Each Week` != "UNKNOWN EMPLOYMENT HOURS") %>% 
   filter(`Mental Illness` != "UNKNOWN") %>% 
   filter(`Age Group` != "UNKNOWN") %>%
-  filter(`Serious Mental Illness` != "UNKNOWN") %>% 
-  mutate(`Serious Mental Illness` = ifelse(`Serious Mental Illness` == "NO", 0, 1))
+  filter(`Serious Mental Illness` != "UNKNOWN")
 ```
+
+```{r}
+survey_cleaned %>%
+  ggplot()+
+  geom_bar(aes(x = Transgender, fill = Transgender))+
+  labs(title = "Transgender Identity after cleaning")+
+  theme(axis.text.x = element_text(angle=20))
+```
+
+> All the "unknown" and "client didn't answer" were removed. We still see the vast majority of the sample is not transgender.
 
 ```{r}
 survey_cleaned %>%
@@ -179,6 +194,9 @@ survey_cleaned %>%
   labs(fill = "Serious Mental Illness")
 ```
 
+> Trans vs serious mi vs age group
+While adults using public mental health services have about the same rate of serious mental illness whether they are trans or cis, transgender children using public mental health services have a higher rate of serious mental illness than cisgender children using public mental health services.
+
 ```{r}
 survey_cleaned %>% 
   ggplot(aes(x = Transgender, fill = `Number Of Hours Worked Each Week`)) +
@@ -195,19 +213,100 @@ survey_cleaned %>%
   labs(fill = "Serious Mental Illness")
 ```
 
+> Race vs serious mental illness
+All four racial categories using public mental health services have roughly the same rate of serious mental illness.
+
 ## MODEL BUILDING
 
 ```{r}
+set.seed(494)
+small_survey <- survey_cleaned %>%
+  sample_n(500) %>%
+  rename(serious = 'Serious Mental Illness') %>%
+  mutate_if(is.character,as.factor) %>%
+  dplyr::select(serious, Transgender, Race) %>%
+  mutate(serious = as.factor(serious))
+
+# head(small_survey)
+```
+
+```{r}
+# naive Bayes model trans predicts serious
+naive_trans_serious <- naiveBayes(
+  serious ~ Transgender,
+  data = small_survey)
+```
+
+```{r}
+# look at trans predicts serious naive Bayes model
+naive_classification_summary_cv(model = naive_trans_serious, data = small_survey, y="serious", k=10)
+```
+
+> Not a good model because it said everyone was seriously mentally ill
+
+```{r}
+# naive Bayes model with serious predicts trans
+naive_serious_trans <- naiveBayes(
+  Transgender ~ serious,
+  data = small_survey)
+```
+
+```{r}
+# look at serious predicts trans naive Bayes model
+naive_classification_summary_cv(model = naive_serious_trans, data = small_survey, y="Transgender", k=10)
+```
+
+> Not a good model because it said everyone was not trans
+
+```{r}
+# naive Bayes model with Race predicts serious
+naive_race_serious <- naiveBayes(
+  serious ~ Race,
+  data = small_survey)
+```
+
+```{r}
+# look at serious predicts Race naive Bayes model
+naive_classification_summary_cv(model = naive_race_serious, data = small_survey, y="serious", k=10)
+```
+
+> Not a good model because it said everyone was seriously mentally ill
+
+```{r}
+# naive Bayes model with Race predicts serious
+naive_serious_race <- naiveBayes(
+  Race ~ serious,
+  data = small_survey)
+```
+
+```{r}
+# look at serious predicts Race naive Bayes model
+naive_classification_summary_cv(model = naive_serious_race, data = small_survey, y="Race", k=10)
+```
+
+> This is also a poor model because it says everyone is white.
+
+```{r}
 logistic <- stan_glm(
-  `Serious Mental Illness` ~ Transgender,
-  data = survey_cleaned,
+  serious ~ Transgender,
+  data = small_survey,
   family = binomial,
   chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
 ```
 
 ```{r}
-prediction_summary(model = logistic, data = survey_cleaned)
+tidy(logistic, conf.int = TRUE)
+mcmc_trace(logistic)
+
+mcmc_hist(posterior_predict(logistic, newdata=data.frame(Transgender="NO, NOT TRANSGENDER")))
+head(small_survey)
 ```
+
+```{r, eval=FALSE}
+classification_summary(model = logistic, data = small_survey)
+```
+
+> classification summary not working
 
 ## NEXT STEPS
 
