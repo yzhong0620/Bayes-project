@@ -28,7 +28,7 @@ library(bayesrules)
 library(janitor)
 library(e1071)
 library(klaR)
-survey <- read_csv("Patient_Characteristics_Survey__PCS___2017.csv")
+survey <- read_csv("Survey_PCS_2017.csv")
 ```
 
 ## INTRODUCING YOUR DATA
