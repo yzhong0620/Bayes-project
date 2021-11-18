@@ -12,17 +12,27 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(kableExtra)
+library(tidyverse)
+library(tidybayes)
+library(rstan)
+library(rstanarm)
+library(bayesplot)
+library(bayesrules)
+library(broom.mixed)
+library(bayesrules)
+library(janitor)
+library(e1071)
 survey <- read_csv("Patient_Characteristics_Survey__PCS___2017.csv")
 ```
 
-## INTRODUCING THE DATA
+## INTRODUCING YOUR DATA
 
 We are using data from the 2017 Patient Characteristics Study (PCS), conducted by the New York State Office of Mental Health to better understand and reform the public mental health system. The PCS collects information about every client recieving public mental health services in the state of New York for a one week period, every 2 years. You can learn more about the study here: https://omh.ny.gov/omhweb/pcs/submissions/. We chose this data set because we are interested in mental health and trans identity, and this was one of the few publicly available data sets that includes trans status as a vairable. We downloaded the data from https://catalog.data.gov/dataset/patient-characteristics-survey-pcs-2017.
 
 ```{r}
-data.frame(variable = c("Transgender", "Mental Illness", "Race", "Hispanic Ethnicity", "Sexual Orientation"), meaning = c("YES or NO", "YES or NO", "WHITE ONLY, BLACK ONLY, or MULTI-RACIAL", "YES or NO", "BISEXUAL, LESBIAN/GAY or STRAIGHT/HETEROSEXUAL")) %>% 
+data.frame(variable = c("Transgender", "Mental Illness", "Race", "Hispanic Ethnicity", "Sexual Orientation", "Age Group", "Serious Mental Illness", "Alcohol Related Disorder", "Drug Substance Disorder", "Number Of Hours Worked Each Week", "Education Status"), meaning = c("YES or NO", "YES or NO", "WHITE ONLY, BLACK ONLY, or MULTI-RACIAL", "YES or NO", "BISEXUAL, LESBIAN/GAY or STRAIGHT/HETEROSEXUAL", "ADULT or CHILD", "YES or NO", "YES or NO", "YES or NO", "Number Of Hours Worked Each Week", "COLLEGE OR GRADUATE DEGREE, MIDDLE SCHOOL TO HIGH SCHOOL, NO FORMAL EDUCATION, OTHER, PRE-K TO FIFTH GRADE, SOME COLLEGE ")) %>% 
   kbl() %>% 
-  kable_classic(position = "center", full_width = F)
+  kable_classic(position = "center")
 ```
 
 ```{r}
@@ -31,9 +41,10 @@ table(survey$`Mental Illness`)
 table(survey$Race)
 table(survey$`Hispanic Ethnicity`)
 table(survey$`Sexual Orientation`)
+table(survey$`Education Status`)
 ```
 
-## DATA SUMMARY
+## DATA SUMMARIES
 
 ```{r}
 head(survey)
@@ -56,20 +67,22 @@ summary(survey)
 ```{r}
 survey %>%
   ggplot()+
-  geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
-  labs(title = "Race & Ethnicity before cleaning")+
+  geom_bar(aes(x = Transgender, fill = Transgender))+
+  labs(title = "Transgender Identity before cleaning")+
   theme(axis.text.x = element_text(angle=20))
-  #geom_text(aes(label=y))
 ```
+
+> Most people are not transgender.
 
 ```{r}
 survey %>%
   ggplot()+
-  geom_bar(aes(x=Transgender, fill = Transgender))+
-  labs(title = "Transgender Identity before cleaning")+
+  geom_bar(aes(x = Race, fill = `Hispanic Ethnicity`))+
+  labs(title = "Race & Ethnicity before cleaning")+
   theme(axis.text.x = element_text(angle=20))
-  #geom_text(aes(label=y))
 ```
+
+> Most of people are WHITE ONLY, following by BLACK ONLY and OTHER. Some proportion of WHITE ONLY and OTHER are hispanic.
 
 ```{r}
 # cleaning the data!
@@ -77,49 +90,14 @@ survey_cleaned <- survey %>%
   filter(Transgender == "NO, NOT TRANSGENDER" | Transgender == "YES, TRANSGENDER") %>%
   filter(Race == "WHITE ONLY" | Race == "BLACK ONLY" | Race == "MULTI-RACIAL" | Race == "OTHER") %>% 
   filter(`Alcohol Related Disorder` == "YES" | `Alcohol Related Disorder` == "NO") %>% 
-  filter(`Drug Substance Disorder` == "YES" | `Drug Substance Disorder` == "NO")
-```
-
-```{r}
-survey_cleaned %>% 
-  ggplot(aes(x = Transgender, fill = `Mental Illness`)) +
-  geom_bar(position = "fill")
-```
-
-```{r}
-survey_cleaned %>% 
-  ggplot(aes(x = Transgender, fill = Race)) +
-  geom_bar(position = "fill")
-```
-
-```{r}
-survey_cleaned %>% 
-  ggplot(aes(x = Race, fill = `Mental Illness`)) +
-  geom_bar(position = "fill")
-```
-
-```{r}
-survey_cleaned %>% 
-  ggplot(aes(x = Transgender, fill = `Alcohol Related Disorder`)) +
-  geom_bar(position = "fill")
-```
-
-```{r}
-survey_cleaned %>% 
-  ggplot(aes(x = Transgender, fill = `Drug Substance Disorder`)) +
-  geom_bar(position = "fill")
-```
-
-```{r}
-survey_cleaned %>% 
-  ggplot(aes(x = `Alcohol Related Disorder`, fill = `Mental Illness`)) +
-  geom_bar(position = "fill")
-```
-
-```{r}
-survey_cleaned %>% 
-  ggplot(aes(x = `Drug Substance Disorder`, fill = `Mental Illness`)) +
-  geom_bar(position = "fill")
+  filter(`Drug Substance Disorder` == "YES" | `Drug Substance Disorder` == "NO") %>% 
+  filter(`Education Status` != "UNKNOWN") %>% 
+  filter(`Hispanic Ethnicity` != "UNKNOWN") %>% 
+  filter(`Number Of Hours Worked Each Week` != "UNKNOWN EMPLOYMENT HOURS") %>% 
+  filter(`Mental Illness` != "UNKNOWN") %>% 
+  filter(`Age Group` != "UNKNOWN") %>%
+  filter(`Serious Mental Illness` != "UNKNOWN") %>% 
+  mutate(`Serious Mental Illness` = ifelse(`Serious Mental Illness` == "NO", 0, 1))
 ```
 
 ```{r}
@@ -128,15 +106,77 @@ survey_cleaned %>%
   geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
   labs(title = "Race & Ethnicity after cleaning")+
   theme(axis.text.x = element_text(angle=20))
-  #geom_text(aes(label=y))
 ```
+
+> Race & Ethnicity after cleaning:
+After cleaning we see that the sample has about twice as many “white only” respondents as “Black only” respondents. We also see that there are respondents identified as hispanic in all four racial categories collected, with the highest number in the category “other”.
 
 ```{r}
 survey_cleaned %>% 
-  ggplot(aes(x = `Transgender`, fill = `Serious Mental Illness`)) +
+  ggplot(aes(x = Transgender, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+> A higher percentage of transgender people have mental illness.
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = Race)) +
+  geom_bar(position = "fill")
+```
+
+> A higher percentage of transgender people are WHITE ONLY, and a lower percentage of transgender people are BLACK ONLY.
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Race, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+> There is not significant difference in mental illness depending on race.
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Alcohol Related Disorder`)) +
+  geom_bar(position = "fill")
+```
+
+> There is no significant difference in alcohol related disorder depending on transgender identity.
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Drug Substance Disorder`)) +
+  geom_bar(position = "fill")
+```
+
+> Transgender vs drug substance disorders: 
+It appears that trans individuals using public mental health services have a slightly lower rate of drug substance disorders than cis individuals using public mental health services, both are around 15%.
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = `Alcohol Related Disorder`, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+> Alcohol related disorders vs mental illness:
+It appears that almost all individuals using public mental health services have mental illness regardless of whether they also have an alcohol related disorder as well. 
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = `Drug Substance Disorder`, fill = `Mental Illness`)) +
+  geom_bar(position = "fill")
+```
+
+> Drug substance disorders vs mental illness:
+It appears that almost all individuals using public mental health services have mental illness regardless of whether they also have a drug substance disorder as well. 
+
+```{r}
+survey_cleaned %>% 
+  ggplot(aes(x = `Transgender`, fill = as.factor(`Serious Mental Illness`))) +
   geom_bar(position = "fill") +
   facet_wrap(vars(`Age Group`))+
-  theme(axis.text.x = element_text(angle=20))
+  theme(axis.text.x = element_text(angle=20)) +
+  labs(fill = "Serious Mental Illness")
 ```
 
 ```{r}
@@ -145,8 +185,34 @@ survey_cleaned %>%
   geom_bar(position = "fill")
 ```
 
+> Hours worked each week vs transgender:
+The majority of individuals using public mental health services were in the “not applicable” category of hours worked each week, regardless of if they were transgender.
+
 ```{r}
 survey_cleaned %>% 
-  ggplot(aes(x = Race, fill = `Serious Mental Illness`)) +
-  geom_bar(position = "fill")
+  ggplot(aes(x = Race, fill = as.factor(`Serious Mental Illness`))) +
+  geom_bar(position = "fill") +
+  labs(fill = "Serious Mental Illness")
 ```
+
+## MODEL BUILDING
+
+```{r}
+logistic <- stan_glm(
+  `Serious Mental Illness` ~ Transgender,
+  data = survey_cleaned,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+```
+
+```{r}
+prediction_summary(model = logistic, data = survey_cleaned)
+```
+
+## NEXT STEPS
+
+> Next steps: we plan to do more evaluation of our models, and make more models, especially controlling for age group (we found more difference between trans and cis respondents having servere mental illness for children than adults) and maybe for insurance coverage and/or education level as poxies for class. We also might try a hierarchical model using region as a grouping variable. We plan to make more data viz figures/arrange them in a way that tells a story. We were thinking that our final result might be a blog post. We might also include an interactive dashboard (shiny app) in the blog.
+
+## PARTICIPATION
+
+> Kaden and Yunyang looked for and discussed datasets together. Kaden wrote the introduction to data and Yunyang made the table. Kaden and Yunyang each did half of the data viz and interpretation. Kaden worked on naive bayes models and Yunyang did the logistic ones.
