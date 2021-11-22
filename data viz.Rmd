@@ -28,7 +28,9 @@ library(bayesrules)
 library(janitor)
 library(e1071)
 library(klaR)
+library(groupdata2)
 survey <- read_csv("Survey_PCS_2017.csv")
+survey <- upsample(survey, "Serious Mental Illness")
 ```
 
 ## INTRODUCING YOUR DATA
@@ -43,7 +45,7 @@ data.frame(variable = c("Transgender", "Mental Illness", "Race", "Hispanic Ethni
 
 ```{r}
 table(survey$Transgender)
-table(survey$`Mental Illness`)
+table(survey$`Serious Mental Illness`)
 table(survey$Race)
 table(survey$`Hispanic Ethnicity`)
 table(survey$`Sexual Orientation`)
