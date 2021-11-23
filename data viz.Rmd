@@ -30,7 +30,6 @@ library(e1071)
 library(klaR)
 library(groupdata2)
 survey <- read_csv("Survey_PCS_2017.csv")
-survey <- upsample(survey, "Serious Mental Illness")
 ```
 
 ## INTRODUCING YOUR DATA
@@ -223,11 +222,16 @@ All four racial categories using public mental health services have roughly the 
 ```{r}
 set.seed(494)
 small_survey <- survey_cleaned %>%
-  sample_n(500) %>%
+  group_by(Transgender) %>%
+  sample_frac(0.1) %>%
+  ungroup() %>% 
+  # sample_n(500) %>%
   rename(serious = 'Serious Mental Illness') %>%
   mutate_if(is.character,as.factor) %>%
-  dplyr::select(serious, Transgender, Race) %>%
+  dplyr::select(serious, Transgender, Race, `Sexual Orientation`, `Age Group`, `Education Status`, `Alcohol Related Disorder`, `Drug Substance Disorder`, `Number Of Hours Worked Each Week`) %>%
   mutate(serious = as.factor(serious))
+
+small_survey <- downsample(small_survey, "serious")
 
 # head(small_survey)
 ```
@@ -309,6 +313,36 @@ classification_summary(model = logistic, data = small_survey)
 ```
 
 > classification summary not working
+
+```{r}
+logistic2 <- stan_glm(
+  serious ~ Race,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+
+classification_summary(model = logistic2, data = small_survey)
+```
+
+```{r}
+logistic3 <- stan_glm(
+  serious ~ Transgender + Race,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+
+classification_summary(model = logistic3, data = small_survey)
+```
+
+```{r}
+logistic4 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Education Status` + `Alcohol Related Disorder` + `Drug Substance Disorder` + `Number Of Hours Worked Each Week`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735)
+
+classification_summary(model = logistic4, data = small_survey)
+```
 
 ## NEXT STEPS
 
