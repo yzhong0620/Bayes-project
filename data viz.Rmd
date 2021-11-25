@@ -342,6 +342,7 @@ logistic4 <- stan_glm(
   chains = 4, iter = 5000*2, seed = 84735)
 
 classification_summary(model = logistic4, data = small_survey)
+classification_summary_cv(model = logistic4, data = small_survey, cutoff = 0.5, k = 5)$cv
 ```
 
 ## NEXT STEPS
