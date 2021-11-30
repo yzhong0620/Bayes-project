@@ -103,7 +103,8 @@ survey_cleaned <- survey %>%
   filter(`Number Of Hours Worked Each Week` != "UNKNOWN EMPLOYMENT HOURS") %>% 
   filter(`Mental Illness` != "UNKNOWN") %>% 
   filter(`Age Group` != "UNKNOWN") %>%
-  filter(`Serious Mental Illness` != "UNKNOWN")
+  filter(`Serious Mental Illness` != "UNKNOWN") %>% 
+  filter(`Sexual Orientation` != "CLIENT DID NOT ANSWER" && `Sexual Orientation` != "UNKNOWN")
 ```
 
 ```{r}
@@ -319,7 +320,7 @@ logistic2 <- stan_glm(
   serious ~ Race,
   data = small_survey,
   family = binomial,
-  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+  chains = 4, iter = 5000*2, seed = 84735)
 
 classification_summary(model = logistic2, data = small_survey)
 ```
@@ -329,7 +330,7 @@ logistic3 <- stan_glm(
   serious ~ Transgender + Race,
   data = small_survey,
   family = binomial,
-  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+  chains = 4, iter = 5000*2, seed = 84735)
 
 classification_summary(model = logistic3, data = small_survey)
 ```
@@ -341,8 +342,70 @@ logistic4 <- stan_glm(
   family = binomial,
   chains = 4, iter = 5000*2, seed = 84735)
 
-classification_summary(model = logistic4, data = small_survey)
-classification_summary_cv(model = logistic4, data = small_survey, cutoff = 0.5, k = 5)$cv
+classification_summary(model = logistic4, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic4, data = small_survey, cutoff = 0.65)
+classification_summary(model = logistic4, data = small_survey, cutoff = 0.7)
+classification_summary_cv(model = logistic4, data = small_survey, cutoff = 0.65, k = 5)$cv
+```
+```{r}
+classification_summary_cv(model = logistic4, data = small_survey, cutoff = 0.6, k = 5)$cv
+classification_summary_cv(model = logistic4, data = small_survey, cutoff = 0.7, k = 5)$cv
+```
+
+```{r}
+logistic5 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Education Status` + `Number Of Hours Worked Each Week`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735)
+
+classification_summary(model = logistic5, data = small_survey, cutoff = 0.5)
+classification_summary(model = logistic5, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic5, data = small_survey, cutoff = 0.65)
+
+tidy(logistic5, effects = c("fixed", "aux"), conf.int = TRUE, conf.level = 0.80)
+```
+
+```{r}
+logistic6 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Education Status`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735)
+
+classification_summary(model = logistic6, data = small_survey, cutoff = 0.5)
+classification_summary(model = logistic6, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic6, data = small_survey, cutoff = 0.65)
+
+tidy(logistic6, effects = c("fixed", "aux"), conf.int = TRUE, conf.level = 0.80)
+```
+
+```{r}
+logistic7 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Number Of Hours Worked Each Week`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735)
+
+classification_summary(model = logistic7, data = small_survey, cutoff = 0.5)
+classification_summary(model = logistic7, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic7, data = small_survey, cutoff = 0.65)
+
+tidy(logistic7, effects = c("fixed", "aux"), conf.int = TRUE, conf.level = 0.80)
+```
+
+```{r}
+logistic8 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Number Of Hours Worked Each Week` + `Alcohol Related Disorder` + `Drug Substance Disorder`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735)
+
+classification_summary(model = logistic8, data = small_survey, cutoff = 0.5)
+classification_summary(model = logistic8, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic8, data = small_survey, cutoff = 0.65)
+
+tidy(logistic8, effects = c("fixed", "aux"), conf.int = TRUE, conf.level = 0.80)
 ```
 
 ## NEXT STEPS
