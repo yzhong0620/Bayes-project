@@ -1,0 +1,375 @@
+---
+title: "checkpoint 4"
+author: "Kaden Bieger & Yunyang Zhong"
+date: "12/2/2021"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(tidyverse)
+library(tidybayes)
+library(rstan)
+library(rstanarm)
+library(bayesplot)
+library(bayesrules)
+library(broom.mixed)
+library(bayesrules)
+library(janitor)
+library(e1071)
+library(klaR)
+library(groupdata2)
+library(patchwork)
+survey <- read_csv("Survey_PCS_2017.csv")
+```
+
+## INTRODUCING YOUR DATA
+
+We are using data from the 2017 Patient Characteristics Study (PCS), conducted by the New York State Office of Mental Health to better understand and reform the public mental health system. The PCS collects information about every client recieving public mental health services in the state of New York for a one week period, every 2 years. You can learn more about the study here: https://omh.ny.gov/omhweb/pcs/submissions/. We chose this data set because we are interested in mental health and trans identity, and this was one of the few publicly available data sets that includes trans status as a vairable. We downloaded the data from https://catalog.data.gov/dataset/patient-characteristics-survey-pcs-2017.
+
+```{r, include=FALSE}
+data.frame(variable = c("Transgender", "Mental Illness", "Race", "Hispanic Ethnicity", "Sexual Orientation", "Age Group", "Serious Mental Illness", "Alcohol Related Disorder", "Drug Substance Disorder", "Number Of Hours Worked Each Week", "Education Status"), meaning = c("YES or NO", "YES or NO", "WHITE ONLY, BLACK ONLY, or MULTI-RACIAL", "YES or NO", "BISEXUAL, LESBIAN/GAY or STRAIGHT/HETEROSEXUAL", "ADULT or CHILD", "YES or NO", "YES or NO", "YES or NO", "Number Of Hours Worked Each Week (01-14 hours, 15-34 hours, 35 hours or more, or not applicable)", "COLLEGE OR GRADUATE DEGREE, MIDDLE SCHOOL TO HIGH SCHOOL, NO FORMAL EDUCATION, OTHER, PRE-K TO FIFTH GRADE, SOME COLLEGE ")) %>% 
+  kbl() %>% 
+  kable_classic(position = "center")
+```
+
+```{r, include=FALSE}
+table(survey$Transgender)
+table(survey$`Serious Mental Illness`)
+table(survey$Race)
+table(survey$`Hispanic Ethnicity`)
+table(survey$`Sexual Orientation`)
+table(survey$`Education Status`)
+```
+
+## DATA SUMMARIES
+
+```{r}
+head(survey)
+```
+
+```{r}
+dim(survey)
+```
+
+```{r, include=FALSE}
+names(survey)
+```
+
+```{r, include=FALSE}
+summary(survey)
+```
+
+## DATA VIZ
+
+```{r, echo=FALSE, fig.width=8, fig.height=8}
+p1 <- survey %>%
+  ggplot()+
+  geom_bar(aes(x = Transgender, fill = Transgender))+
+  labs(title = "Transgender Identity before cleaning")+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom")
+
+p2 <- survey %>%
+  ggplot()+
+  geom_bar(aes(x = Race, fill = `Hispanic Ethnicity`))+
+  labs(title = "Race & Ethnicity before cleaning")+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom")
+
+p1 | p2
+```
+
+> Most people are not transgender. Most of people are WHITE ONLY, following by BLACK ONLY and OTHER. Some proportion of WHITE ONLY and OTHER are hispanic.
+
+```{r}
+# cleaning the data!
+survey_cleaned <- survey %>% 
+  filter(Transgender == "NO, NOT TRANSGENDER" | Transgender == "YES, TRANSGENDER") %>%
+  filter(Race == "WHITE ONLY" | Race == "BLACK ONLY" | Race == "MULTI-RACIAL" | Race == "OTHER") %>% 
+  filter(`Alcohol Related Disorder` == "YES" | `Alcohol Related Disorder` == "NO") %>% 
+  filter(`Drug Substance Disorder` == "YES" | `Drug Substance Disorder` == "NO") %>% 
+  filter(`Education Status` != "UNKNOWN") %>% 
+  filter(`Hispanic Ethnicity` != "UNKNOWN") %>% 
+  filter(`Number Of Hours Worked Each Week` != "UNKNOWN EMPLOYMENT HOURS") %>% 
+  filter(`Mental Illness` != "UNKNOWN") %>% 
+  filter(`Age Group` != "UNKNOWN") %>%
+  filter(`Serious Mental Illness` != "UNKNOWN") %>% 
+  filter(`Sexual Orientation` != "CLIENT DID NOT ANSWER") %>% 
+  filter(`Sexual Orientation` != "UNKNOWN")
+```
+
+> We removed unknown/not answered values for each variable.
+
+```{r, echo=FALSE}
+survey_cleaned %>%
+  ggplot()+
+  geom_bar(aes(x = Transgender, fill = Transgender))+
+  labs(title = "Transgender Identity after cleaning")+
+  theme(axis.text.x = element_text(angle=20))
+```
+
+> All the "unknown" and "client didn't answer" were removed. We still see the vast majority of the sample is not transgender.
+
+```{r, echo=FALSE}
+survey_cleaned %>%
+  ggplot()+
+  geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
+  labs(title = "Race & Ethnicity after cleaning")+
+  theme(axis.text.x = element_text(angle=20))
+```
+
+> Race & Ethnicity after cleaning:
+After cleaning we see that the sample has about twice as many “white only” respondents as “Black only” respondents. We also see that there are respondents identified as hispanic in all four racial categories collected, with the highest number in the category “other”.
+
+```{r, echo=FALSE}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = Race)) +
+  geom_bar(position = "fill")
+```
+
+> A higher percentage of transgender people are WHITE ONLY, and a lower percentage of transgender people are BLACK ONLY.
+
+```{r, echo=FALSE}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Alcohol Related Disorder`)) +
+  geom_bar(position = "fill")
+```
+
+> There is no significant difference in alcohol related disorder depending on transgender identity.
+
+```{r, echo=FALSE}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Drug Substance Disorder`)) +
+  geom_bar(position = "fill")
+```
+
+> Transgender vs drug substance disorders: 
+It appears that trans individuals using public mental health services have a slightly lower rate of drug substance disorders than cis individuals using public mental health services, both are around 15%.
+
+```{r, echo=FALSE}
+survey_cleaned %>% 
+  ggplot(aes(x = `Transgender`, fill = as.factor(`Serious Mental Illness`))) +
+  geom_bar(position = "fill") +
+  facet_wrap(vars(`Age Group`))+
+  theme(axis.text.x = element_text(angle=20)) +
+  labs(fill = "Serious Mental Illness")
+```
+
+> Trans vs serious mi vs age group:
+While adults using public mental health services have about the same rate of serious mental illness whether they are trans or cis, transgender children using public mental health services have a higher rate of serious mental illness than cisgender children using public mental health services.
+
+```{r, echo=FALSE}
+survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Number Of Hours Worked Each Week`)) +
+  geom_bar(position = "fill")
+```
+
+> Hours worked each week vs transgender:
+The majority of individuals using public mental health services were in the “not applicable” category of hours worked each week, regardless of if they were transgender.
+
+```{r, echo=FALSE}
+survey_cleaned %>% 
+  ggplot(aes(x = Race, fill = as.factor(`Serious Mental Illness`))) +
+  geom_bar(position = "fill") +
+  labs(fill = "Serious Mental Illness")
+```
+
+> Race vs serious mental illness:
+All four racial categories using public mental health services have roughly the same rate of serious mental illness.
+
+## MODEL BUILDING
+
+```{r}
+set.seed(494)
+small_survey <- survey_cleaned %>%
+  group_by(Transgender) %>%
+  sample_frac(0.1) %>%
+  ungroup() %>% 
+  rename(serious = 'Serious Mental Illness') %>%
+  mutate_if(is.character,as.factor) %>%
+  dplyr::select(serious, Transgender, Race, `Sexual Orientation`, `Age Group`, `Education Status`, `Alcohol Related Disorder`, `Drug Substance Disorder`, `Number Of Hours Worked Each Week`) %>%
+  mutate(serious = as.factor(serious))
+
+small_survey <- downsample(small_survey, "serious")
+```
+
+> Because our data is very unbalanced and the majority of observations have serious mental illness, we decided to downsample so that there are equal amounts of patients with and without serious mental illness in our modeling data. In this way we can prevent models from classifying everything as having serious mental illness.
+
+```{r}
+# naive Bayes model trans predicts serious
+naive_trans_serious <- naiveBayes(
+  serious ~ Transgender,
+  data = small_survey)
+```
+
+```{r}
+# look at trans predicts serious naive Bayes model
+naive_classification_summary_cv(model = naive_trans_serious, data = small_survey, y="serious", k=10)
+```
+
+> Not a good model because it said everyone was seriously mentally ill
+
+```{r}
+# naive Bayes model with Race predicts serious
+naive_race_serious <- naiveBayes(
+  serious ~ Race,
+  data = small_survey)
+```
+
+```{r}
+# look at serious predicts Race naive Bayes model
+naive_classification_summary_cv(model = naive_race_serious, data = small_survey, y="serious", k=10)
+```
+
+> Not a good model because it said everyone was seriously mentally ill
+
+```{r, echo=FALSE, eval=FALSE}
+logistic3 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+
+# Save an object to a file
+saveRDS(logistic3, file = "logistic3.rds")
+```
+
+```{r}
+logistic3 <- readRDS(file = "logistic3.rds")
+
+classification_summary(model = logistic3, data = small_survey)
+```
+
+> Similar to model 2, the sensitivity is much lower than the specificity. Overall the accuracy of this model is also very low at 0.53 --again,  barely above chance.
+
+```{r, echo=FALSE, eval=FALSE}
+logistic4 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Education Status` + `Alcohol Related Disorder` + `Drug Substance Disorder` + `Number Of Hours Worked Each Week`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+
+# Save an object to a file
+saveRDS(logistic4, file = "logistic4.rds")
+```
+
+```{r}
+# Restore the object
+logistic4 <- readRDS(file = "logistic4.rds")
+
+tidy(logistic4, effects = c("fixed", "aux"), conf.int = TRUE, conf.level = 0.80)
+
+classification_summary(model = logistic4, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic4, data = small_survey, cutoff = 0.65)
+classification_summary(model = logistic4, data = small_survey, cutoff = 0.7)
+```
+
+```{r}
+classification_summary_cv(model = logistic4, data = small_survey, cutoff = 0.6, k = 5)$cv
+classification_summary_cv(model = logistic4, data = small_survey, cutoff = 0.65, k = 5)$cv
+classification_summary_cv(model = logistic4, data = small_survey, cutoff = 0.7, k = 5)$cv
+```
+
+> Since logistic regression models produce a probability, how well they classify patients in our data set as seriously mentally ill or not depends on the cut off set. For example, in the classification summaries of the models above, if the model said there was >0.5 probability of serious mental illness, the patient was classified as seriously mentally ill. When looking at model 4 we varied the cutoff between 0.6, 0.65, and 0.7, and used both regular (model trains on test patients) and cv (model does not train on test patients) classification summaries.
+
+> Across these 6 summaries overall accuracy ranged from 0.602 to 0.699, with lower accuracy the higher the cutoff, and with cv versus regular classification. Intuitively, sensitivity decreased and specificity increased as the cutoff was raised, ranging from 0.333 to 0.677 and 0.718 to 0.853 respectively. 
+
+```{r, echo=FALSE, eval=FALSE}
+logistic5 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Education Status` + `Number Of Hours Worked Each Week`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+
+# Save an object to a file
+saveRDS(logistic5, file = "logistic5.rds")
+```
+
+```{r}
+# Restore the object
+logistic5 <- readRDS(file = "logistic5.rds")
+
+classification_summary(model = logistic5, data = small_survey, cutoff = 0.5)
+classification_summary(model = logistic5, data = small_survey, cutoff = 0.55)
+classification_summary(model = logistic5, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic5, data = small_survey, cutoff = 0.65)
+```
+
+> We evaluated the classification summary of this model at three cutoffs: 0.5, 0.6, and 0.65. Overall accuracy ranged from 0.699 to 0.704 (highest at 0.5 cutoff). Sensitivity ranged from 0.673 to 0.711 (highest at 0.5 cutoff). Specificity ranged from 0.704 to 0.725 (highest at 0.65 cutoff).
+
+```{r, echo=FALSE, eval=FALSE}
+logistic6 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Education Status`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+
+# Save an object to a file
+saveRDS(logistic6, file = "logistic6.rds")
+```
+
+```{r}
+# Restore the object
+logistic6 <- readRDS(file = "logistic6.rds")
+
+classification_summary(model = logistic6, data = small_survey, cutoff = 0.5)
+classification_summary(model = logistic6, data = small_survey, cutoff = 0.55)
+classification_summary(model = logistic6, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic6, data = small_survey, cutoff = 0.65)
+```
+
+> We also evaluated the classification summary of this model at three cutoffs: 0.5, 0.6, and 0.65. Overall accuracy ranged from 0.58 to 0.68 (highest at 0.5 cutoff) -- notably lower than model 5, indicating hours worked may be an important variable to control for. Sensitivity ranged from 0.30 to 0.84 (highest at 0.5 cutoff). Specificity ranged from 0.52 to 0.58 (highest at 0.65 cutoff). Both ranges are notably lower than model 5. 
+
+> Both transgnder and all 3 racial coefficients have both positive and negative values within the 80% credible interval, and so (even when controlling for sexual orientation, age group, education status, and hours worked) do not have a clear relationship with serious mental illness among patients using public mental health services.
+
+> Clean sexual orientation -- currently appears that both being gay and being straight are protective compared to being bisexual -- but could change after cleaning?
+
+> The child coefficient estimate in the 80% credible interval ranges from -1.803 to -1.442, so it would appear that (when controlling for the other predictors in this model) a child patient using public mental health services is less likely than an adult patient to have serious mental illness -- this makes sense given that many serious mental illnesses first develop in young adulthood. 
+
+> The no formal education and pre-k to 5th grade coefficients in the 80% credible interval range from  -2.046 to -0.143 and -0.811 to -0.205 respectively, meaning that (when controlling for age!) patients using public mental health services who have less education are less likely to have serious mental illness compared to the model default of college degree. This may be related to non-mental-illness-related reasons for using public mental health services such as traumatic brain injury or intellectual disability, which may be associated with receiving less education. The coefficients for intermediate levels of education (middle to high school and some college) had both positive and negative values in the 80% credible interval, and so there is not a clear difference in serious mental illness between patients with these education levels and patients with college degrees.
+
+```{r, echo=FALSE, eval=FALSE}
+logistic7 <- stan_glm(
+  serious ~ Transgender + Race + `Sexual Orientation` + `Age Group` + `Number Of Hours Worked Each Week`,
+  data = small_survey,
+  family = binomial,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+
+# Save an object to a file
+saveRDS(logistic7, file = "logistic7.rds")
+```
+
+```{r}
+# Restore the object
+logistic7 <- readRDS(file = "logistic7.rds")
+
+classification_summary(model = logistic7, data = small_survey, cutoff = 0.5)
+classification_summary(model = logistic7, data = small_survey, cutoff = 0.55)
+classification_summary(model = logistic7, data = small_survey, cutoff = 0.6)
+classification_summary(model = logistic7, data = small_survey, cutoff = 0.65)
+```
+
+> We also evaluated the classification summary of this model at three cutoffs: 0.5, 0.6, and 0.65. Overall accuracy stayed constant at 0.7029805 -- on par with model 5, indicating that controlling for education level may not be necessary. Sensitivity ranged from 0.686 to 0.688 (highest at 0.5 cutoff). Specificity ranged from 0.703 to 0.720 (highest at 0.65 cutoff). Both ranges are very similar to model 5.
+
+> Same as model 6, transgnder and race do not have a clear relationship with serious mental illness among patients using public mental health services.
+
+> The child coefficient estimate in the 80% credible interval was even lower than model 6, ranging from -2.228 to -1.913, which supports the idea that a child patient using public mental health services is less likely than an adult patient to have serious mental illness.
+
+> The number of hours worked not applicable (likely meaning the patient is unemployed) coefficient ranged from 0.430 to 1.171 in the 80% credible interval, indicating that not having a job was more associated with serious mental illness than the model default of less than 15 hours worked per week -- this is intuitive because serious mental illness could make it difficult for a person to work. The coefficients of other numbers of hours worked per week (all above 15) were both positive and negative in the 80% credible interval, and so are not clearly different from the default.
+
+## NEXT STEPS
+
+> Next steps: we plan to do more evaluation of our models, and make more models, especially controlling for age group (we found more difference between trans and cis respondents having servere mental illness for children than adults) and maybe for insurance coverage and/or education level as poxies for class. We also might try a hierarchical model using region as a grouping variable. We plan to make more data viz figures/arrange them in a way that tells a story. We were thinking that our final result might be a blog post. We might also include an interactive dashboard (shiny app) in the blog.
+
+## PARTICIPATION
+
+> Kaden and Yunyang looked for and discussed datasets together. Kaden wrote the introduction to data and Yunyang made the table. Kaden and Yunyang each did half of the data viz and interpretation. Kaden worked on naive bayes models and Yunyang did the logistic ones. Kaden and Yunyang worked together on everything in class.
