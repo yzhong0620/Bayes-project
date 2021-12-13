@@ -77,13 +77,13 @@ p1 <- survey %>%
   ggplot()+
   geom_bar(aes(x = Transgender, fill = Transgender))+
   labs(title = "Transgender Identity before cleaning")+
-  theme(axis.text.x = element_text(angle=20), legend.position = "bottom")
+  theme(axis.text.x = element_text(angle=20), legend.position = "none")
 
 p2 <- survey %>%
   ggplot()+
   geom_bar(aes(x = Race, fill = `Hispanic Ethnicity`))+
   labs(title = "Race & Ethnicity before cleaning")+
-  theme(axis.text.x = element_text(angle=20), legend.position = "bottom")
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom", legend.title = element_blank())
 
 p1 | p2
 ```
@@ -109,79 +109,84 @@ survey_cleaned <- survey %>%
 
 > We removed unknown/not answered values for each variable.
 
-```{r, echo=FALSE}
-survey_cleaned %>%
+```{r, echo=FALSE, fig.width=8, fig.height=8}
+p3 <- survey_cleaned %>%
   ggplot()+
   geom_bar(aes(x = Transgender, fill = Transgender))+
   labs(title = "Transgender Identity after cleaning")+
-  theme(axis.text.x = element_text(angle=20))
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom", legend.title = element_blank())
+
+p4 <- survey_cleaned %>%
+  ggplot()+
+  geom_bar(aes(x = Race, fill = `Hispanic Ethnicity`))+
+  labs(title = "Race & Ethnicity after cleaning")+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom", legend.title = element_blank())
+
+p3 | p4
 ```
 
 > All the "unknown" and "client didn't answer" were removed. We still see the vast majority of the sample is not transgender.
 
-```{r, echo=FALSE}
-survey_cleaned %>%
-  ggplot()+
-  geom_bar(aes(x=Race, fill = `Hispanic Ethnicity`))+
-  labs(title = "Race & Ethnicity after cleaning")+
-  theme(axis.text.x = element_text(angle=20))
-```
-
 > Race & Ethnicity after cleaning:
 After cleaning we see that the sample has about twice as many “white only” respondents as “Black only” respondents. We also see that there are respondents identified as hispanic in all four racial categories collected, with the highest number in the category “other”.
 
-```{r, echo=FALSE}
-survey_cleaned %>% 
+```{r, echo=FALSE, fig.width=8, fig.height=8}
+p5 <- survey_cleaned %>% 
   ggplot(aes(x = Transgender, fill = Race)) +
-  geom_bar(position = "fill")
+  geom_bar(position = "fill")+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom", legend.title = element_blank())
+
+p6 <- survey_cleaned %>% 
+  ggplot(aes(x = Transgender, fill = `Alcohol Related Disorder`)) +
+  geom_bar(position = "fill")+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom")
+
+p5 | p6
 ```
 
 > A higher percentage of transgender people are WHITE ONLY, and a lower percentage of transgender people are BLACK ONLY.
 
-```{r, echo=FALSE}
-survey_cleaned %>% 
-  ggplot(aes(x = Transgender, fill = `Alcohol Related Disorder`)) +
-  geom_bar(position = "fill")
-```
-
 > There is no significant difference in alcohol related disorder depending on transgender identity.
 
-```{r, echo=FALSE}
-survey_cleaned %>% 
+```{r, echo=FALSE, fig.width=8, fig.height=8}
+p7 <- survey_cleaned %>% 
   ggplot(aes(x = Transgender, fill = `Drug Substance Disorder`)) +
-  geom_bar(position = "fill")
+  geom_bar(position = "fill")+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom")
+
+p8 <- survey_cleaned %>% 
+  ggplot(aes(x = `Transgender`, fill = as.factor(`Serious Mental Illness`))) +
+  geom_bar(position = "fill") +
+  facet_wrap(vars(`Age Group`))+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom") +
+  labs(fill = "Serious Mental Illness")
+
+p7 | p8
 ```
 
 > Transgender vs drug substance disorders: 
 It appears that trans individuals using public mental health services have a slightly lower rate of drug substance disorders than cis individuals using public mental health services, both are around 15%.
 
-```{r, echo=FALSE}
-survey_cleaned %>% 
-  ggplot(aes(x = `Transgender`, fill = as.factor(`Serious Mental Illness`))) +
-  geom_bar(position = "fill") +
-  facet_wrap(vars(`Age Group`))+
-  theme(axis.text.x = element_text(angle=20)) +
-  labs(fill = "Serious Mental Illness")
-```
-
 > Trans vs serious mi vs age group:
 While adults using public mental health services have about the same rate of serious mental illness whether they are trans or cis, transgender children using public mental health services have a higher rate of serious mental illness than cisgender children using public mental health services.
 
-```{r, echo=FALSE}
-survey_cleaned %>% 
+```{r, echo=FALSE, fig.width=8, fig.height=8}
+p9 <- survey_cleaned %>% 
   ggplot(aes(x = Transgender, fill = `Number Of Hours Worked Each Week`)) +
-  geom_bar(position = "fill")
+  geom_bar(position = "fill")+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom", legend.title = element_blank())
+
+p10 <- survey_cleaned %>% 
+  ggplot(aes(x = Race, fill = as.factor(`Serious Mental Illness`))) +
+  geom_bar(position = "fill") +
+  labs(fill = "Serious Mental Illness")+
+  theme(axis.text.x = element_text(angle=20), legend.position = "bottom")
+
+p9 | p10
 ```
 
 > Hours worked each week vs transgender:
 The majority of individuals using public mental health services were in the “not applicable” category of hours worked each week, regardless of if they were transgender.
-
-```{r, echo=FALSE}
-survey_cleaned %>% 
-  ggplot(aes(x = Race, fill = as.factor(`Serious Mental Illness`))) +
-  geom_bar(position = "fill") +
-  labs(fill = "Serious Mental Illness")
-```
 
 > Race vs serious mental illness:
 All four racial categories using public mental health services have roughly the same rate of serious mental illness.
